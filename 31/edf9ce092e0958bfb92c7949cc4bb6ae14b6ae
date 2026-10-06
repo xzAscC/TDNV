@@ -1,0 +1,19 @@
+slurm/concepts.sh
+  s_0af9fb8f1d9869::t_df99e5cd7d721a 22-24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "31edf9ce092e0958bfb92c7949cc4bb6ae14b6ae",
+  "prompts": {},
+  "sessions": {
+    "s_0af9fb8f1d9869": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fd8db822-fd50-430a-8628-8b55bdf44313",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "xzascc <xudongzhu3944@gmail.com>"
+    }
+  }
+}
