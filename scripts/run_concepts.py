@@ -78,6 +78,8 @@ def main() -> None:
         print(f"\n=== {concept}: {len(texts)} texts | pos={int(labels.sum())}")
         print("  last chars (label 1):", repr(texts[0][-80:]))
         hidden = last_token_states(model, tok, texts, args.batch_size, args.max_length)
+        if not torch.isfinite(hidden[:, 1:]).all():
+            raise RuntimeError(f"{concept}: non-finite hidden states; not writing metrics")
         report = layerwise_report(hidden, labels, args.n_shuffles, args.seed, device)
         report["config"] = {**vars(args), "concept": concept, "n_examples": len(texts)}
         out_dir = model_dir / concept
