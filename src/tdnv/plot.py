@@ -11,7 +11,7 @@ def plot_report(report: dict, path, title: str = "") -> None:
     layers = np.array(report["layer"])
     fig, ax = plt.subplots(1, 3, figsize=(13, 3.6))
 
-    ax[0].plot(layers, report["tdnv"], "o-", label="harmful vs benign")
+    ax[0].plot(layers, report["tdnv"], "o-", label="positive vs negative")
     ax[0].plot(layers, report["tdnv_shuffled"], "--", color="gray", label="shuffled labels")
     ax[0].axhline(1.0, color="k", lw=0.6, ls=":")
     ax[0].set_yscale("log")
