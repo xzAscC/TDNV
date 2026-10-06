@@ -11,7 +11,8 @@ truth_*: the model is asked "Is the following statement true or false? Answer wi
   get -alpha (target answer "false"), false ones +alpha (target "true"). The first true/false word
   in the output is the answer.
 caa_*: the held-out A/B question is followed by "(" after the generation prompt, as in CAA; the
-  generated letter is the answer. Each question is run with +alpha (target: the behavior-matching
+  answer is whichever of the tokens "A" and "B" has the larger logit at the next position (free
+  generation is not used: some models answer the A/B question in prose). Each question is run with +alpha (target: the behavior-matching
   letter) and with -alpha (target: the other letter). Split is by question.
 
 A run succeeds when the answer equals the target; an output with no parsable answer is invalid.
@@ -142,8 +143,12 @@ class Steerer:
 
 
 @torch.no_grad()
-def answer(model, tok, prompts, coefs, steerer, batch_size, max_new_tokens):
-    """Greedy answers (decoded text) under steering with per-prompt coefficients."""
+def answer(model, tok, prompts, coefs, steerer, batch_size, max_new_tokens, choices=None):
+    """Greedy answers (decoded text) under steering with per-prompt coefficients.
+
+    choices: {answer text: token id}; if given, the answer is the choice with the largest
+    next-token logit instead of a generated continuation.
+    """
     out = [""] * len(prompts)
     order = sorted(range(len(prompts)), key=lambda i: len(prompts[i]))
     for i in range(0, len(prompts), batch_size):
@@ -151,6 +156,13 @@ def answer(model, tok, prompts, coefs, steerer, batch_size, max_new_tokens):
         enc = tok([prompts[j] for j in idx], return_tensors="pt", padding=True,
                   add_special_tokens=False).to(model.device)
         steerer.coef = torch.tensor([coefs[j] for j in idx], dtype=torch.float32)
+        if choices:
+            logits = model(**enc, logits_to_keep=1).logits[:, -1, list(choices.values())].float()
+            if not torch.isfinite(logits).all():
+                raise RuntimeError("non-finite logits under steering")
+            for j, k in zip(idx, logits.argmax(-1).tolist()):
+                out[j] = list(choices)[k]
+            continue
         gen = model.generate(**enc, max_new_tokens=max_new_tokens, do_sample=False,
                              pad_token_id=tok.pad_token_id)
         for j, g in zip(idx, gen[:, enc["input_ids"].shape[1]:]):
@@ -188,6 +200,10 @@ def run_concept(model, tok, concept: str, args) -> None:
     prompts, signs, targets, parser = eval_items(tok, test)
     signs, targets = np.array(signs), np.array(targets)
     pos = signs > 0
+    choices = None
+    if not test[0].raw:
+        choices = {c: tok(c, add_special_tokens=False)["input_ids"][0] for c in "AB"}
+        assert len(set(choices.values())) == 2, choices
     print(f"  {len(prompts)} eval prompts | prompt: {prompts[0][-160:]!r} | target {targets[0]!r}")
 
     def score(txt):
@@ -201,7 +217,7 @@ def run_concept(model, tok, concept: str, args) -> None:
     steerer.v = torch.zeros(vec.shape[1])
     steerer.attach(layers[0])
     base_txt = answer(model, tok, prompts, [0.0] * len(prompts), steerer, args.batch_size,
-                      args.max_new_tokens)
+                      args.max_new_tokens, choices)
     base = score(base_txt)  # share of items already at the target answer without steering
     print(f"  unsteered: {base} | e.g. {base_txt[:3]}")
 
@@ -211,7 +227,7 @@ def run_concept(model, tok, concept: str, args) -> None:
         steerer.attach(layer)
         for a in alphas:
             txt = answer(model, tok, prompts, list(a * signs), steerer, args.batch_size,
-                         args.max_new_tokens)
+                         args.max_new_tokens, choices)
             runs.append(dict(
                 layer=layer, rel_depth=layer / (len(tdnv) - 1), alpha=a, tdnv=tdnv[layer],
                 vec_norm=float(vec[layer].norm()), **score(txt),
