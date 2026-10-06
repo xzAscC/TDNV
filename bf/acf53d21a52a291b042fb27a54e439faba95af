@@ -1,0 +1,23 @@
+notebooks/figstyle.py
+  s_0af9fb8f1d9869::t_728c025467ae38 1-66
+notebooks/plot_sweep.py
+  s_0af9fb8f1d9869::t_24a554f70bf972 54-60
+  s_0af9fb8f1d9869::t_04f10565ed9af2 19
+  s_0af9fb8f1d9869::t_edbe150a3430bb 1-18,20-53,61-174
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bfacf53d21a52a291b042fb27a54e439faba95af",
+  "prompts": {},
+  "sessions": {
+    "s_0af9fb8f1d9869": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fd8db822-fd50-430a-8628-8b55bdf44313",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "xzascc <xudongzhu3944@gmail.com>"
+    }
+  }
+}
