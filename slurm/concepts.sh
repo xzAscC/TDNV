@@ -19,7 +19,9 @@ mkdir -p logs
 MODEL="$1"; shift
 
 # Weights are re-downloadable, so they live on scratch (purged after 60 days without access).
-export HF_HOME=/fs/scratch/PAS2324/zhu.3944/hf-cache
+# TDNV_HF_HOME overrides it, e.g. to read a gated model that only an older cache still holds
+# (pair with HF_HUB_OFFLINE=1 so nothing is downloaded there).
+export HF_HOME="${TDNV_HF_HOME:-/fs/scratch/PAS2324/zhu.3944/hf-cache}"
 export HF_TOKEN_PATH="$HOME/.cache/huggingface/token"
 export UV_CACHE_DIR=/fs/ess/PAS2324/zhu.3944/uv-cache
 export TOKENIZERS_PARALLELISM=false
