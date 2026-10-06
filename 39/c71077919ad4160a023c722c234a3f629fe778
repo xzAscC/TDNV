@@ -1,0 +1,46 @@
+tests/test_metrics.py
+  s_0af9fb8f1d9869::t_988e09a231b8ff 15
+  s_0af9fb8f1d9869::t_8c54cd9d31ec34 1-14,16-35
+src/tdnv/metrics.py
+  s_0af9fb8f1d9869::t_b5b6e2fbf5ddf6 1-93
+.python-version
+  s_0af9fb8f1d9869::t_151baba7f21852 1
+pyproject.toml
+  s_0af9fb8f1d9869::t_e3bdc35e3c6e50 4,10-17,22-26
+  s_0af9fb8f1d9869::t_151baba7f21852 1-3,5-9,18-21
+src/tdnv/__init__.py
+  s_0af9fb8f1d9869::t_151baba7f21852 1-2
+scripts/run_safety.py
+  s_0af9fb8f1d9869::t_d42ba0f7e21ef7 1-77
+src/tdnv/data.py
+  s_0af9fb8f1d9869::t_df69eba96516aa 1-46
+src/tdnv/plot.py
+  s_0af9fb8f1d9869::t_0a90ab34d42dbe 1-35
+slurm/safety.sh
+  s_0af9fb8f1d9869::t_b4b6bd81be3491 1-30
+.gitignore
+  s_0af9fb8f1d9869::t_e3bdc35e3c6e50 1-5
+src/tdnv/extract.py
+  s_0af9fb8f1d9869::t_ac0e6696ccbda1 1-22,24-45
+  s_0af9fb8f1d9869::t_63dd16fc5114a8 23
+README.md
+  s_0af9fb8f1d9869::t_8fc18577fc4c93 1-51
+uv.lock
+  s_0af9fb8f1d9869::t_ffe3ce0bc717c2 1-2918
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "39c71077919ad4160a023c722c234a3f629fe778",
+  "prompts": {},
+  "sessions": {
+    "s_0af9fb8f1d9869": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fd8db822-fd50-430a-8628-8b55bdf44313",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "xzascc <xudongzhu3944@gmail.com>"
+    }
+  }
+}
