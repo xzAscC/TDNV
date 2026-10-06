@@ -38,6 +38,7 @@ mpl.rcParams.update(RC)
 # Color encodes the model family; marker shape encodes the model within its family.
 FAMILY_COLOR = {"Qwen3": "#3A6DB5", "Gemma": "#D04A4A", "OLMo-3": "#B88A12", "Llama-3": "#3E8E3E"}
 MODELS = {  # hf id -> (family, short label, marker)
+    "Qwen/Qwen3-4B": ("Qwen3", "Qwen3-4B", "v"),
     "Qwen/Qwen3-8B": ("Qwen3", "Qwen3-8B", "o"),
     "Qwen/Qwen3-14B": ("Qwen3", "Qwen3-14B", "s"),
     "Qwen/Qwen3-32B": ("Qwen3", "Qwen3-32B", "^"),
