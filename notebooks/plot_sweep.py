@@ -98,7 +98,14 @@ def fig_main(data, concepts, models, path):
             if l not in labels:
                 handles.append(h)
                 labels.append(l)
-    fig.legend(handles, labels, loc="outside upper center", ncol=5, handlelength=1.8,
+    order = [MODELS[m][1] for m in models]
+    pairs = sorted(zip(handles, labels), key=lambda p: order.index(p[1]))
+    ncol = min(len(pairs), 6)
+    rows_ = math.ceil(len(pairs) / ncol)
+    # matplotlib fills legend columns first; reorder so entries read left to right in model order
+    grid = [pairs[r * ncol:(r + 1) * ncol] for r in range(rows_)]
+    colmajor = [grid[r][c] for c in range(ncol) for r in range(rows_) if c < len(grid[r])]
+    fig.legend(*zip(*colmajor), loc="outside upper center", ncol=ncol, handlelength=1.8,
                columnspacing=1.0)
     fig.savefig(path)
     return fig
@@ -151,7 +158,8 @@ def main():
         rs = [r for r in rows if r["concept"] == c]
         score[c] = (sum(r["is_u"] for r in rs) / len(rs),
                     float(np.median([math.log(r["drop"] * r["rise"]) for r in rs])))
-    ranked = sorted(concepts, key=lambda c: score[c], reverse=True)
+    # Main figure: concepts where most models are U-shaped, ordered by how deep the U is.
+    ranked = sorted(concepts, key=lambda c: (score[c][0] >= 0.6, score[c][1]), reverse=True)
     print(f"{'concept':34s} {'U-frac':>6s} {'med log(drop*rise)':>18s}")
     for c in ranked:
         print(f"{c:34s} {score[c][0]:6.2f} {score[c][1]:18.2f}")
