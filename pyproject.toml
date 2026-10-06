@@ -1,0 +1,26 @@
+[project]
+name = "tdnv"
+version = "0.1.0"
+description = "Layerwise TDNV of LLM representations on contrastive (steering) datasets"
+readme = "README.md"
+authors = [
+    { name = "xzascc", email = "xudongzhu3944@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "accelerate>=1.15.0",
+    "datasets>=5.1.0",
+    "matplotlib>=3.11.2",
+    "numpy>=2.4.6",
+    "torch>=2.14.1",
+    "transformers>=5.18.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.23,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
