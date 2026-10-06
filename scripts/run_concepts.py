@@ -18,6 +18,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from tdnv.concepts import CONCEPTS, load_concept
 from tdnv.extract import last_token_states, render
 from tdnv.metrics import layerwise_report
+from tdnv.p2p import stage_cross_gpu_copies
 from tdnv.plot import plot_report
 
 
@@ -26,6 +27,8 @@ def load_model(name: str):
     # model to CPU/disk on 2x40GB cards, which made each batch ~30x slower.
     max_memory = {i: int(torch.cuda.get_device_properties(i).total_memory * 0.94)
                   for i in range(torch.cuda.device_count())}
+    if torch.cuda.device_count() > 1:
+        stage_cross_gpu_copies()  # direct peer copies corrupt data on OSC Ascend 2-GPU nodes
     kw = dict(torch_dtype=torch.bfloat16, device_map="auto", max_memory=max_memory or None)
     if "gemma-2" in name.lower():
         kw["attn_implementation"] = "eager"  # sdpa drops Gemma-2's attention soft-capping
