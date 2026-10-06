@@ -1,0 +1,31 @@
+scripts/run_concepts.py
+  s_0af9fb8f1d9869::t_45ba985488023b 1-81
+src/tdnv/concepts.py
+  s_0af9fb8f1d9869::t_d54411a045dcc0 1-88
+slurm/concepts.sh
+  s_0af9fb8f1d9869::t_476a6948542572 1-29
+src/tdnv/plot.py
+  s_0af9fb8f1d9869::t_476a6948542572 14
+src/tdnv/extract.py
+  s_0af9fb8f1d9869::t_29fb4d2a477246 39,41,43,47,51
+  s_0af9fb8f1d9869::t_67f99b069c84f5 48-50
+  s_0af9fb8f1d9869::t_145510f09f49c0 9-10,12-15,17-27
+.gitignore
+  s_0af9fb8f1d9869::t_c7f62b7bed07c9 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9e7e51a3b8946f8850f9ed02cc99c562431fe1c3",
+  "prompts": {},
+  "sessions": {
+    "s_0af9fb8f1d9869": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fd8db822-fd50-430a-8628-8b55bdf44313",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "xzascc <xudongzhu3944@gmail.com>"
+    }
+  }
+}
