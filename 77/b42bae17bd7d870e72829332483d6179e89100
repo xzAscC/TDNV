@@ -1,0 +1,21 @@
+scripts/check_split.py
+  s_0af9fb8f1d9869::t_70cbe9a36c90e3 1-61
+src/tdnv/p2p.py
+  s_0af9fb8f1d9869::t_65889a5755c78a 1-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "77b42bae17bd7d870e72829332483d6179e89100",
+  "prompts": {},
+  "sessions": {
+    "s_0af9fb8f1d9869": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fd8db822-fd50-430a-8628-8b55bdf44313",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "xzascc <xudongzhu3944@gmail.com>"
+    }
+  }
+}
