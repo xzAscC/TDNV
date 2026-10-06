@@ -38,17 +38,17 @@ so layer 0 has zero variance and zero distance, and its TDNV is `NaN`.
 ```bash
 uv sync
 uv run pytest -q
-uv run python scripts/run_safety.py --model meta-llama/Llama-3.1-8B-Instruct --mode prompt --n 1000
+uv run python scripts/run_concepts.py --model Qwen/Qwen3-8B --concepts safety_prompt,safety_response
 ```
 
-On OSC Ascend (one A100):
+On OSC (one A100 for models up to ~14B, two for 27-32B):
 
 ```bash
-sbatch slurm/safety.sh
-MODELS="Qwen/Qwen3-8B" N=2000 sbatch slurm/safety.sh
+sbatch slurm/concepts.sh Qwen/Qwen3-8B
+sbatch --gpus-per-node=2 slurm/concepts.sh Qwen/Qwen3-32B --batch-size 32
 ```
 
-Outputs go to `outputs/<model>/<mode>_<chat|raw>_n<N>_s<seed>/` (`metrics.json`, `tdnv.png`).
+Outputs go to `outputs/<model>/<concept>/` (`metrics.json`, `tdnv.png`).
 
 ## Concept sweep (branch `sweep`)
 
