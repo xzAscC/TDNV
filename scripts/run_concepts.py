@@ -22,7 +22,11 @@ from tdnv.plot import plot_report
 
 
 def load_model(name: str):
-    kw = dict(torch_dtype=torch.bfloat16, device_map="auto")
+    # Keep every layer on a GPU: accelerate's default budget can push a few layers of a 27-32B
+    # model to CPU/disk on 2x40GB cards, which made each batch ~30x slower.
+    max_memory = {i: int(torch.cuda.get_device_properties(i).total_memory * 0.94)
+                  for i in range(torch.cuda.device_count())}
+    kw = dict(torch_dtype=torch.bfloat16, device_map="auto", max_memory=max_memory or None)
     if "gemma-2" in name.lower():
         kw["attn_implementation"] = "eager"  # sdpa drops Gemma-2's attention soft-capping
     try:
@@ -30,6 +34,12 @@ def load_model(name: str):
     except ValueError:  # e.g. multimodal Gemma-3 checkpoints
         from transformers import AutoModelForImageTextToText
         model = AutoModelForImageTextToText.from_pretrained(name, **kw)
+    placement = {}
+    for dev in getattr(model, "hf_device_map", {}).values():
+        placement[str(dev)] = placement.get(str(dev), 0) + 1
+    print("device map (modules per device):", placement)
+    if any(d in ("cpu", "disk") for d in placement):
+        raise RuntimeError("model does not fit on the GPUs; request more GPUs instead of offloading")
     return model.eval()
 
 
