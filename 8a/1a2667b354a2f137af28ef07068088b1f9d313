@@ -1,0 +1,24 @@
+tests/test_icl.py
+  s_dcfb2bdec94334::t_1f222431c1e2df 1-30
+src/tdnv/icl.py
+  s_dcfb2bdec94334::t_5fae15646fa382 1-104
+scripts/run_icl.py
+  s_dcfb2bdec94334::t_6e47b06fe746d0 47,52,54-55
+  s_dcfb2bdec94334::t_35924628e771e9 1-46,48-51,53,56-132
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8a1a2667b354a2f137af28ef07068088b1f9d313",
+  "prompts": {},
+  "sessions": {
+    "s_dcfb2bdec94334": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "53dd2787-cf6a-4fa4-be67-e4c925155ebf",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "xzascc <xudongzhu3944@gmail.com>"
+    }
+  }
+}
