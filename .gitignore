@@ -1,6 +1,22 @@
+# Python / tooling
 .venv/
 __pycache__/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Downloaded concept data (cached by src/tdnv/concepts.py from GitHub)
+data/
+
+# Experiment outputs, figures, SLURM logs, tensors (regenerable; outputs and figures
+# are on the HF dataset xzAscC/TDNV-results, see scripts/upload_hf.sh)
 outputs/
+figs/
 logs/
 *.pt
-data/
+
+# Overleaf paper repo (separate git repo, cloned here locally)
+/67d9c83d9d4c97f7ed1d5351/
+
+# Local Claude Code settings
+.claude/settings.local.json

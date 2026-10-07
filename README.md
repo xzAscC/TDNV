@@ -50,6 +50,16 @@ sbatch --gpus-per-node=2 slurm/concepts.sh Qwen/Qwen3-32B --batch-size 32
 
 Outputs go to `outputs/<model>/<concept>/` (`metrics.json`, `tdnv.png`).
 
+Results (`outputs/`, `figs/`, `results/`) are on the HF dataset
+[`xzAscC/TDNV-results`](https://huggingface.co/datasets/xzAscC/TDNV-results). To redraw the figures
+without running the models:
+
+```bash
+hf download xzAscC/TDNV-results --repo-type dataset --include "outputs/*" --local-dir .
+```
+
+`scripts/upload_hf.sh` uploads new or changed results there.
+
 ## Concept sweep (branch `sweep`)
 
 `scripts/run_concepts.py` runs every concept in `src/tdnv/concepts.py` for one model; `slurm/concepts.sh`
