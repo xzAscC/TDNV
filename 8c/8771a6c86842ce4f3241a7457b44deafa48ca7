@@ -1,0 +1,25 @@
+.gitignore
+  s_dcfb2bdec94334::t_55004dbc90a17b 1,4-12,14,17-21
+  s_dcfb2bdec94334::t_279fa827ef40b8 22
+scripts/upload_hf.sh
+  s_dcfb2bdec94334::t_223b22220eef04 8-9
+  s_dcfb2bdec94334::t_6c3380f2539c52 1-7,10
+README.md
+  s_dcfb2bdec94334::t_1ba78dd37815d0 53-62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8c8771a6c86842ce4f3241a7457b44deafa48ca7",
+  "prompts": {},
+  "sessions": {
+    "s_dcfb2bdec94334": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "53dd2787-cf6a-4fa4-be67-e4c925155ebf",
+        "model": "unknown"
+      },
+      "human_author": "xzascc <xudongzhu3944@gmail.com>"
+    }
+  }
+}
