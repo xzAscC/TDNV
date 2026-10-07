@@ -1,0 +1,30 @@
+notebooks/figstyle.py
+  s_dcfb2bdec94334::t_244b74c2609f47 53
+notebooks/plot_sweep.py
+  s_dcfb2bdec94334::t_8fed0844b1666c 318,321-322
+notebooks/plot_steer_grid.py
+  s_dcfb2bdec94334::t_ac498f9c1f41cd 25,71-74,96-101,115-118,123-133,182-184,187-191,193-213,224-225,231-232
+  s_dcfb2bdec94334::t_b612fb4137f2d8 102-105
+  s_dcfb2bdec94334::t_a92df4e6459112 30-41,66,145
+  s_dcfb2bdec94334::t_3e6a81172de2fc 185-186,229-230
+  s_dcfb2bdec94334::t_7b9963e628f5c4 219,227-228
+  s_dcfb2bdec94334::t_d8ed7997be5552 1-24,26-29,42-48,52,54-65,67-70,75-95,106-114,119-120,134-144,146-156,158-174,176-181,214-218,220,222-223,226,233-236
+  s_dcfb2bdec94334::t_77d3ed0f99b92c 192
+  s_dcfb2bdec94334::t_3397bc8c3c014b 49-51,53,121-122,157,175,221
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d51cc0a627a4395cac3d7af15ab2e900b42a713f",
+  "prompts": {},
+  "sessions": {
+    "s_dcfb2bdec94334": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "53dd2787-cf6a-4fa4-be67-e4c925155ebf",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "xzascc <xudongzhu3944@gmail.com>"
+    }
+  }
+}
