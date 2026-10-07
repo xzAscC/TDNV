@@ -6,6 +6,11 @@ coef * v_l is added to the input of decoder layer l at every position, prompt an
 with coef = +alpha or -alpha, and the model answers by greedy decoding. Index l is the same index
 as the TDNV curve; index L is the final-norm output.
 
+--scale raw (default) adds alpha * v_l as is, so the same alpha moves the state by very different
+amounts at different layers (||v_l|| grows by orders of magnitude with depth). --scale resid adds
+alpha * r_l * v_l / ||v_l||, where r_l is the mean norm of the fit-half last-token states at index l:
+alpha is then the step as a fraction of the residual-stream norm, comparable across layers and models.
+
 truth_*: the model is asked "Is the following statement true or false? Answer with one word, True
   or False." about each held-out statement (chat template if the tokenizer has one). True statements
   get -alpha (target answer "false"), false ones +alpha (target "true"). The first true/false word
@@ -195,7 +200,10 @@ def run_concept(model, tok, concept: str, args) -> None:
     hidden = last_token_states(model, tok, [render(tok, e) for e in fit], args.batch_size, 512)
     labels = torch.tensor([e.label for e in fit])
     vec = hidden[labels == 1].mean(0) - hidden[labels == 0].mean(0)  # [L+1, d]
+    resid_norm = hidden.norm(dim=-1).mean(0)  # [L+1]
     del hidden
+    if args.scale == "resid":
+        vec = vec / vec.norm(dim=-1, keepdim=True) * resid_norm[:, None]
 
     prompts, signs, targets, parser = eval_items(tok, test)
     signs, targets = np.array(signs), np.array(targets)
@@ -230,7 +238,7 @@ def run_concept(model, tok, concept: str, args) -> None:
                          args.max_new_tokens, choices)
             runs.append(dict(
                 layer=layer, rel_depth=layer / (len(tdnv) - 1), alpha=a, tdnv=tdnv[layer],
-                vec_norm=float(vec[layer].norm()), **score(txt),
+                vec_norm=float(vec[layer].norm()), resid_norm=float(resid_norm[layer]), **score(txt),
                 examples=[(prompts[k][-80:], txt[k]) for k in (0, len(prompts) - 1)],
             ))
             r = runs[-1]
@@ -256,6 +264,8 @@ def main() -> None:
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--n-layers", type=int, default=10)
     ap.add_argument("--alphas", default="0.5,1,2,4")
+    ap.add_argument("--scale", choices=["raw", "resid"], default="raw",
+                    help="raw: alpha * v_l; resid: alpha * r_l * v_l / ||v_l|| (see module doc)")
     ap.add_argument("--max-new-tokens", type=int, default=8)
     ap.add_argument("--max-test", type=int, default=0, help="cap on test statements (0 = all)")
     ap.add_argument("--batch-size", type=int, default=32)
