@@ -16,10 +16,11 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.colors import to_rgb
 from matplotlib.ticker import FuncFormatter, LogFormatterMathtext, LogLocator, NullLocator
 
 sys.path.insert(0, str(Path(__file__).parent))
-from figstyle import CONCEPT_LABEL, FULL, HALF, MODELS, MUTED, model_style  # noqa: E402
+from figstyle import CONCEPT_LABEL, FAMILY_COLOR, FULL, HALF, MODELS, MUTED, model_style  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -167,6 +168,149 @@ def fig_concept(data, concept, models, path):
     return fig
 
 
+def family_shades(models):
+    """Model -> color: one hue per family, lighter for smaller models (MODELS lists them by size)."""
+    out = {}
+    for fam, base in FAMILY_COLOR.items():
+        ms = [m for m in models if MODELS[m][0] == fam]
+        rgb = np.array(to_rgb(base))
+        for i, m in enumerate(ms):
+            t = np.linspace(-0.3, 0.35, len(ms))[i] if len(ms) > 1 else 0.0
+            out[m] = tuple(rgb + (1 - rgb) * -t) if t < 0 else tuple(rgb * (1 - t))
+    return out
+
+
+def fig_concept_shades(data, concept, models, path):
+    """Full-width single panel: TDNV vs relative depth for every model, one hue per family,
+    shade by model size, one marker at each model's minimum. Legend on the right, by family."""
+    models = [m for m in models if (m, concept) in data]
+    shade = family_shades(models)
+    fig, ax = plt.subplots(figsize=(4.1, 1.75), layout="constrained")
+    for model in models:
+        t = np.array(data[(model, concept)]["tdnv"][1:], dtype=float)
+        L = len(t)
+        x = np.arange(1, L + 1) / L
+        _, label, marker = MODELS[model]
+        c = shade[model]
+        m = int(np.nanargmin(t))
+        ax.plot(x, t, color=c, lw=0.8, alpha=0.9, zorder=2, label=label, marker=marker,
+                markevery=[m], ms=4.2, markeredgecolor="white", markeredgewidth=0.5)
+    log_axis(ax)
+    ax.set_xlim(0, 1.02)
+    ax.set_xlabel("Relative Depth (Layer / L)")
+    ax.set_ylabel("TDNV")
+    fig.legend(loc="outside right center", ncol=1, fontsize=6.5, handlelength=1.4,
+               handletextpad=0.4, labelspacing=0.2, markerscale=0.8)
+    fig.savefig(path)
+    return fig
+
+
+def fig_family_panels(data, concept, models, path, title=None, xlabel=True, height=1.75):
+    """Main-text figure: one panel per model family, shared log y-axis, TDNV vs relative depth.
+    Models in a family share its hue, darker for larger models; one marker at each minimum.
+    The appendix stacks one per concept: `title` names the concept above the row (panel titles
+    then drop their letters) and `xlabel=False` leaves the axis label to the last row."""
+    models = [m for m in models if (m, concept) in data]
+    fams = [f for f in FAMILY_COLOR if any(MODELS[m][0] == f for m in models)]
+    shade = family_shades(models)
+    # Appendix rows use fixed margins (inches) so the stacked rows line up panel for panel.
+    fig, axes = plt.subplots(1, len(fams), figsize=(FULL, height), sharey=True, squeeze=False,
+                             layout="constrained" if title is None else None)
+    if title is not None:
+        bottom = 0.42 if xlabel else 0.2
+        fig.subplots_adjust(left=0.47 / FULL, right=1 - 0.04 / FULL, wspace=0.12,
+                            top=1 - 0.4 / height, bottom=bottom / height)
+    for i, (ax, fam) in enumerate(zip(axes.flat, fams)):
+        for model in [m for m in models if MODELS[m][0] == fam]:
+            t = np.array(data[(model, concept)]["tdnv"][1:], dtype=float)
+            L = len(t)
+            x = np.arange(1, L + 1) / L
+            _, label, marker = MODELS[model]
+            m = int(np.nanargmin(t))
+            ax.plot(x, t, color=shade[model], lw=0.9, zorder=2, label=label.rsplit("-", 1)[1], marker=marker,
+                    markevery=[m], ms=3.6, markeredgecolor="white", markeredgewidth=0.4)
+        ax.set_xlim(0, 1.02)
+        ax.set_xticks([0, 0.5, 1])
+        ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}"))
+        if title is None:
+            ax.set_title(f"({chr(97 + i)}) {fam}", loc="left", fontweight="bold")
+        else:
+            ax.set_title(fam, loc="left", fontsize=7.5, color=MUTED)
+        n_fam = sum(MODELS[m][0] == fam for m in models)
+        compact = title is not None and n_fam > 2  # short appendix rows: 2x2 legend
+        ax.legend(loc="upper right", fontsize=6.5, handlelength=1.0 if compact else 1.3,
+                  handletextpad=0.3 if compact else 0.4, labelspacing=0.15 if compact else 0.2,
+                  ncol=2 if compact else 1, columnspacing=0.6, borderaxespad=0.2)
+    log_axis(axes.flat[0])
+    if axes.flat[0].get_ylim()[1] / axes.flat[0].get_ylim()[0] > 30:  # label every decade
+        axes.flat[0].yaxis.set_major_locator(LogLocator(base=10, numticks=12))
+    axes.flat[0].set_ylabel("TDNV")
+    if xlabel:
+        pos = {} if title is None else dict(y=0.03 / height, va="bottom")
+        fig.supxlabel("Relative Depth (Layer / L)", fontsize=8, **pos)
+    if title is not None:
+        fig.suptitle(title, x=0.01, y=1 - 0.03 / height, ha="left", va="top", fontweight="bold",
+                     fontsize=8.5)
+    fig.savefig(path)
+    return fig
+
+
+def fig_concepts_grid(data, concepts, models, path, cols=3):
+    """Appendix grid in the style of fig_concept_shades: one panel per concept, all models,
+    one hue per family with shade by size, marker at each model's minimum. The legend fills the
+    empty slots after the last panel, or sits above the grid when the last row is full."""
+    models = [m for m in models if any((m, c) in data for c in concepts)]
+    shade = family_shades(models)
+    rows = math.ceil(len(concepts) / cols)
+    fig, axes = plt.subplots(rows, cols, figsize=(FULL, 1.6 * rows + 0.35), layout="constrained",
+                             squeeze=False, sharex=True)
+    for i, (ax, c) in enumerate(zip(axes.flat, concepts)):
+        for model in models:
+            r = data.get((model, c))
+            if r is None:
+                continue
+            t = np.array(r["tdnv"][1:], dtype=float)
+            L = len(t)
+            x = np.arange(1, L + 1) / L
+            _, label, marker = MODELS[model]
+            m = int(np.nanargmin(t))
+            ax.plot(x, t, color=shade[model], lw=0.7, alpha=0.9, zorder=2, label=label,
+                    marker=marker, markevery=[m], ms=3.4, markeredgecolor="white",
+                    markeredgewidth=0.4)
+        log_axis(ax)
+        if ax.get_ylim()[1] / ax.get_ylim()[0] > 30:  # label every decade
+            ax.yaxis.set_major_locator(LogLocator(base=10, numticks=12))
+        ax.set_xlim(0, 1.02)
+        ax.set_xticks([0, 0.5, 1])
+        ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}"))
+        ax.tick_params(labelsize=6.5)
+        ax.set_title(f"({chr(97 + i)}) {CONCEPT_LABEL[c]}", loc="left", fontweight="bold")
+        if i % cols == 0:
+            ax.set_ylabel("TDNV")
+    n = len(concepts)
+    for ax in axes.flat[n:]:
+        ax.set_visible(False)
+    for ax in axes.flat[n - cols:n]:
+        ax.set_xlabel("Relative Depth (Layer / L)")
+        ax.xaxis.set_tick_params(labelbottom=True)
+    # legend in the empty slots after the last panel (outside constrained layout, so it does
+    # not resize the grid)
+    # legend columns fill top to bottom: Qwen3 + OLMo-3 in the first, Gemma-2 + Gemma-3 in the second
+    hl = dict(zip(*axes.flat[0].get_legend_handles_labels()[::-1]))
+    fam_order = ["Qwen3", "OLMo-3", "Gemma-2", "Gemma-3"]
+    labels = [MODELS[m][1] for f in fam_order for m in models if MODELS[m][0] == f]
+    handles = [hl[l] for l in labels]
+    if n % cols:
+        fig.legend(handles, labels, loc="center",
+                   bbox_to_anchor=(0.5 + 0.5 * (n % cols) / cols, 0.5 / rows),
+                   ncol=cols - n % cols, fontsize=7, handlelength=1.6, handletextpad=0.4,
+                   columnspacing=1.4, labelspacing=0.35)
+    else:
+        shared_legend(fig, axes.flat[:n], models)
+    fig.savefig(path)
+    return fig
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--outputs", default=str(ROOT / "outputs"))
@@ -210,6 +354,20 @@ def main():
         "tdnv_all_concepts": fig_main(data, concepts, models, figs / "tdnv_all_concepts.pdf"),
         "tdnv_by_family": fig_family(data, ranked[0], figs / "tdnv_by_family.pdf"),
         "tdnv_by_family_cities": fig_family(data, "truth_cities", figs / "tdnv_by_family_cities.pdf"),
+        "tdnv_cities": fig_family_panels(data, "truth_cities", models, figs / "tdnv_cities.pdf"),
+    }
+    # Appendix: one family-panel row per concept, stacked on one page.
+    app = [c for c in CONCEPT_LABEL if c != "truth_cities"]
+    (figs / "appendix").mkdir(exist_ok=True)
+    for i, c in enumerate(app):
+        last = i == len(app) - 1
+        out[f"appendix/tdnv_{c}"] = fig_family_panels(
+            data, c, models, figs / "appendix" / f"tdnv_{c}.pdf",
+            title=f"({chr(97 + i)}) {CONCEPT_LABEL[c]}", xlabel=last, height=1.5 if last else 1.33)
+    out |= {
+        "tdnv_appendix_concepts": fig_concepts_grid(
+            data, [c for c in concepts if c != "truth_cities"], models,
+            figs / "tdnv_appendix_concepts.pdf"),
     }
     (figs / "concepts").mkdir(exist_ok=True)
     for c in concepts:
