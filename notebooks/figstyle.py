@@ -50,7 +50,7 @@ MODELS = {  # hf id -> (family, short label, marker)
     "allenai/Olmo-3-1125-32B": ("OLMo-3", "OLMo-3-32B", "s"),  # base model: no 3.0 32B Instruct
 }
 
-# Concepts in the paper: Cities (main text) and six more (appendix), in panel order.
+# Concepts in the paper: Myopic Reward (main text) and six more (appendix).
 CONCEPT_LABEL = {
     "truth_cities": "Truth: Cities",
     "caa_corrigible-neutral-HHH": "Corrigibility", "caa_myopic-reward": "Myopic Reward",

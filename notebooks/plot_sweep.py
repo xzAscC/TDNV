@@ -315,9 +315,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--outputs", default=str(ROOT / "outputs"))
     ap.add_argument("--preview", default=None, help="also write PNG previews here (not figs/)")
+    ap.add_argument("--families", default="Qwen3,Gemma-2,Gemma-3", help="comma list")
     args = ap.parse_args()
 
-    data = load(Path(args.outputs))
+    families = args.families.split(",")
+    data = {k: v for k, v in load(Path(args.outputs)).items() if MODELS[k[0]][0] in families}
     models = [m for m in MODELS if any(k[0] == m for k in data)]
     concepts = [c for c in CONCEPT_LABEL if any(k[1] == c for k in data)]
     print(f"{len(data)} runs | {len(models)} models | {len(concepts)} concepts")
