@@ -1,0 +1,22 @@
+scripts/run_steering.py
+  s_1ad8d4a57aad2c::t_18ee3bc4eaf29e 203,205-206
+  s_1ad8d4a57aad2c::t_80543a6a930da7 241
+  s_1ad8d4a57aad2c::t_344bf9ec74ac48 9-13
+  s_1ad8d4a57aad2c::t_31dc4ad375a63c 267-268
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "68f1b625d2d2a7ac647cd1f329235b10ce8dc3f7",
+  "prompts": {},
+  "sessions": {
+    "s_1ad8d4a57aad2c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "72465577-97eb-4cab-8386-20abe8023d7f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "xzascc <xudongzhu3944@gmail.com>"
+    }
+  }
+}
