@@ -1,0 +1,21 @@
+notebooks/plot_icl.py
+  s_dcfb2bdec94334::t_218a4603beba2b 1-190
+results/icl_summary.csv
+  s_dcfb2bdec94334::t_49bc28090eb71a 1-385
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "439419c5d65f102566dfbf516f09f495b86d8e2c",
+  "prompts": {},
+  "sessions": {
+    "s_dcfb2bdec94334": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "53dd2787-cf6a-4fa4-be67-e4c925155ebf",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "xzascc <xudongzhu3944@gmail.com>"
+    }
+  }
+}
