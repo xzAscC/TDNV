@@ -3,8 +3,8 @@ over every (model, concept) pair with steering results.
 
     uv run python notebooks/plot_steer_grid.py [--concept truth_cities] [--max-invalid 0.1]
 
-Reads outputs/<model>/<concept>/metrics.json (TDNV) and outputs/<model>/steer_<concept>/metrics.json
-(scripts/run_steering.py). Writes figs/tdnv_steering.pdf.
+Reads outputs/<model>/<concept>/metrics.json (TDNV) and <steer-outputs>/<model>/steer_<concept>/metrics.json
+(scripts/run_steering.py; --steer-outputs defaults to --outputs, outputs/steer_all holds the every-layer runs). Writes figs/tdnv_steering.pdf.
 (a)-(d) TDNV on --concept, (e)-(h) steering success on --concept, (i) min-TDNV depth vs best-steering
 depth, (j) per-model Spearman correlation between -log TDNV and steering success over steered layers.
 """
@@ -46,14 +46,15 @@ SHORT = {  # concept -> x-tick label in (j), in panel order
 }
 
 
-def load(outputs: Path, families: list[str]) -> dict:
+def load(outputs: Path, families: list[str], steer_outputs: Path | None = None) -> dict:
     """(model, concept) -> (TDNV metrics, steering metrics) for every pair that has both,
-    models of `families` only."""
+    models of `families` only. Steering runs are read from `steer_outputs` (default `outputs`)."""
     data = {}
     for m in [m for m in MODELS if MODELS[m][0] in families]:
         d = outputs / m.replace("/", "__")
+        ds = (steer_outputs or outputs) / m.replace("/", "__")
         for c in SHORT:
-            t, s = d / c / "metrics.json", d / f"steer_{c}" / "metrics.json"
+            t, s = d / c / "metrics.json", ds / f"steer_{c}" / "metrics.json"
             if t.exists() and s.exists():
                 data[(m, c)] = (json.loads(t.read_text()), json.loads(s.read_text()))
     return data
@@ -86,8 +87,9 @@ def draw_family_rows(top, stats, concept, models, title=None, xlabel=True):
                     marker=marker, markevery=[st["k"]], ms=3.6, markeredgecolor="white",
                     markeredgewidth=0.4)
             xs = st["layers"] / st["L"]
-            a1.plot(xs, st["succ"], color=c, lw=0.9, zorder=2, marker=marker, ms=2.4,
-                    markeredgecolor="white", markeredgewidth=0.3)
+            dense = len(xs) > 12  # every-layer runs: a line only, no marker per layer
+            a1.plot(xs, st["succ"], color=c, lw=0.9, zorder=2, marker=None if dense else marker,
+                    ms=2.4, markeredgecolor="white", markeredgewidth=0.3)
             b = int(np.argmax(st["succ"]))
             a1.plot(xs[b], st["succ"][b], marker="*", color=c, ms=6.5, markeredgecolor="white",
                     markeredgewidth=0.4, zorder=4)
@@ -218,10 +220,13 @@ def main():
     ap.add_argument("--outputs", default=str(ROOT / "outputs"))
     ap.add_argument("--concept", default="caa_myopic-reward")
     ap.add_argument("--max-invalid", type=float, default=0.1)
+    ap.add_argument("--steer-outputs", default=None,
+                    help="steering runs root (default: --outputs; outputs/steer_all = every layer)")
     ap.add_argument("--families", default="Qwen3,Gemma-2,Gemma-3", help="comma list")
     args = ap.parse_args()
     path = ROOT / "figs" / "tdnv_steering.pdf"
-    data = load(Path(args.outputs), args.families.split(","))
+    data = load(Path(args.outputs), args.families.split(","),
+                Path(args.steer_outputs) if args.steer_outputs else None)
     fig_steer_grid(data, args.concept, args.max_invalid, path)
     print("wrote", path)
     # appendix: behavioral concepts first, then Geometry of Truth
