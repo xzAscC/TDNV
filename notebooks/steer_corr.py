@@ -1,11 +1,13 @@
 """Layerwise correlation between -log TDNV and steering success: 10 steered layers vs every layer.
 
-    uv run python notebooks/steer_corr.py [--max-invalid 0.1]
+    uv run python notebooks/steer_corr.py [--alpha pair|layer] [--max-invalid 0.1]
 
 Reads TDNV from outputs/<model>/<concept>/metrics.json, the 10-layer steering runs from
 outputs/<model>/steer_<concept>/metrics.json and the every-layer runs (run_steering.py --n-layers 0)
-from outputs/steer_all/<model>/steer_<concept>/metrics.json. Steering success at a layer is the best
-success over the alphas whose invalid rate is at most --max-invalid (plot_steering.steer_curve).
+from outputs/steer_all/<model>/steer_<concept>/metrics.json. Steering success per layer, as in
+plot_steer_grid --alpha: "pair" (default, the paper figure) uses one alpha for all layers of a pair, the
+one with the highest Spearman rho over that layer set (column `alpha`); "layer" takes the best success
+over the alphas whose invalid rate is at most --max-invalid (plot_steering.steer_curve).
 Per (model, concept) and layer set: Spearman, Pearson and Kendall tau-b between -log TDNV and
 success, and the relative-depth gap between the min-TDNV layer and the best steering layer.
 Writes results/steer_corr.csv and prints medians over models per concept and per family.
@@ -39,16 +41,32 @@ def kendall_tau_b(a, b) -> float:
     return float((da * db).sum() / denom) if denom else np.nan
 
 
-def stats(tdnv: np.ndarray, s: dict, max_invalid: float, only=None) -> dict:
-    layers, succ = steer_curve(s, max_invalid)
-    if only is not None:
-        keep = np.isin(layers, only)
-        layers, succ = layers[keep], succ[keep]
+def curves(s: dict, max_invalid: float, alpha: str):
+    """[(alpha, layer indices, success %)]: one curve per alpha ("pair"), or the per-layer best (nan)."""
+    if alpha == "layer":
+        return [(np.nan, *steer_curve(s, max_invalid))]
+    out = []
+    for a in sorted({r["alpha"] for r in s["runs"]}):
+        rs = sorted((r for r in s["runs"] if r["alpha"] == a), key=lambda r: r["layer"])
+        out.append((a, np.array([r["layer"] for r in rs]), 100 * np.array([r["success_rate"] for r in rs])))
+    return out
+
+
+def stats(tdnv: np.ndarray, s: dict, max_invalid: float, only=None, alpha: str = "pair") -> dict:
+    cands = []
+    for a, layers, succ in curves(s, max_invalid, alpha):
+        if only is not None:
+            keep = np.isin(layers, only)
+            layers, succ = layers[keep], succ[keep]
+        rho = np.nan if np.ptp(succ) == 0 else spearmanr(-np.log(tdnv[layers]), succ)
+        cands.append((-np.inf if np.isnan(rho) else rho, a, layers, succ))
+    _, a, layers, succ = max(cands, key=lambda c: c[0])  # first alpha on ties, as pair_stats_alpha
     L = len(tdnv) - 1
     x = -np.log(tdnv[layers])
     flat = np.ptp(succ) == 0
     k = 1 + int(np.nanargmin(tdnv[1:]))
     return dict(
+        alpha=a,
         n=len(layers),
         spearman=np.nan if flat else spearmanr(x, succ),
         pearson=np.nan if flat else float(np.corrcoef(x, succ)[0, 1]),
@@ -62,6 +80,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--outputs", default=str(ROOT / "outputs"))
     ap.add_argument("--max-invalid", type=float, default=0.1)
+    ap.add_argument("--alpha", choices=["pair", "layer"], default="pair",
+                    help="pair: one alpha per pair, highest rho; layer: best valid alpha per layer")
     args = ap.parse_args()
     out = Path(args.outputs)
     rows = []
@@ -75,9 +95,9 @@ def main():
                 continue
             tdnv = np.array(json.loads(t.read_text())["tdnv"], dtype=float)
             r10, rall = json.loads(s10.read_text()), json.loads(sall.read_text())
-            for name, st in (("10", stats(tdnv, r10, args.max_invalid)),
-                             ("all", stats(tdnv, rall, args.max_invalid)),
-                             ("all@10", stats(tdnv, rall, args.max_invalid, only=r10["layers"]))):
+            for name, st in (("10", stats(tdnv, r10, args.max_invalid, alpha=args.alpha)),
+                             ("all", stats(tdnv, rall, args.max_invalid, alpha=args.alpha)),
+                             ("all@10", stats(tdnv, rall, args.max_invalid, r10["layers"], args.alpha))):
                 rows.append(dict(model=m, family=MODELS[m][0], concept=c, layers=name, **st))
 
     path = ROOT / "results" / "steer_corr.csv"
