@@ -1,0 +1,19 @@
+notebooks/plot_steer_grid.py
+  s_62a94bb2df87c9::t_5894a252a77e49 72-88,145-147,155-156,246-247,253
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ec35ebf2b2459ff5224b64bc31cc80dc4e7d0055",
+  "prompts": {},
+  "sessions": {
+    "s_62a94bb2df87c9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "28f7bca2-9e26-4c72-8019-21c15a834f43",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "xzascc <xudongzhu3944@gmail.com>"
+    }
+  }
+}
