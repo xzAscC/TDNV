@@ -69,6 +69,23 @@ def pair_stats(t: dict, s: dict, max_invalid: float) -> dict:
                 best=int(layers[np.argmax(succ)]), rho=rho)
 
 
+def pair_stats_alpha(t: dict, s: dict) -> dict:
+    """pair_stats with one alpha for every layer: the alpha whose layerwise success curve has the
+    highest Spearman rho with -log TDNV (an upper bound, since alpha is chosen by rho itself).
+    The best steering layer is the peak of that curve."""
+    tdnv = np.array(t["tdnv"][1:], dtype=float)  # layers 1..L
+    out = None
+    for a in sorted({r["alpha"] for r in s["runs"]}):
+        rs = sorted((r for r in s["runs"] if r["alpha"] == a), key=lambda r: r["layer"])
+        layers = np.array([r["layer"] for r in rs])
+        succ = 100 * np.array([r["success_rate"] for r in rs])
+        rho = spearmanr(-np.log(tdnv[layers - 1]), succ) if np.ptp(succ) > 0 else np.nan
+        if out is None or (np.isfinite(rho) and not rho <= out["rho"]):
+            out = dict(L=len(tdnv), tdnv=tdnv, k=int(np.nanargmin(tdnv)), layers=layers, succ=succ,
+                       best=int(layers[np.argmax(succ)]), rho=rho, alpha=a)
+    return out
+
+
 def draw_family_rows(top, stats, concept, models, title=None, xlabel=True):
     """TDNV (top row) and steering success (bottom row) per model family on one concept.
     Panels are lettered (a), (b), ... unless `title` is given (appendix rows: the title names the
@@ -125,7 +142,9 @@ def draw_family_rows(top, stats, concept, models, title=None, xlabel=True):
     return axes
 
 
-def fig_steer_grid(data, concept, max_invalid, path):
+def fig_steer_grid(data, concept, max_invalid, path, gh_alpha="layer"):
+    """gh_alpha: how (g) and (h) pick alpha. "layer": best valid alpha per layer, as in (d)-(f);
+    "pair": one alpha per (model, concept), the one with the highest rho (pair_stats_alpha)."""
     stats = {key: pair_stats(*v, max_invalid) for key, v in data.items()}
     models = [m for m in MODELS if (m, concept) in data]
     fams = [f for f in FAMILY_COLOR if any(MODELS[m][0] == f for m in models)]
@@ -133,6 +152,8 @@ def fig_steer_grid(data, concept, max_invalid, path):
     fig = plt.figure(figsize=(FULL, 5.0), layout="constrained")
     top, bottom = fig.subfigures(2, 1, height_ratios=[2.9, 2.1])
     draw_family_rows(top, stats, concept, models)
+    if gh_alpha == "pair":
+        stats = {key: pair_stats_alpha(*v) for key, v in data.items()}
 
     ai, aj = bottom.subplots(1, 2, width_ratios=[1, 1.45])
     # (i) depth of the min-TDNV layer vs depth of the best steering layer, every pair
@@ -222,12 +243,14 @@ def main():
     ap.add_argument("--max-invalid", type=float, default=0.1)
     ap.add_argument("--steer-outputs", default=None,
                     help="steering runs root (default: --outputs; outputs/steer_all = every layer)")
+    ap.add_argument("--gh-alpha", choices=["layer", "pair"], default="layer",
+                    help="alpha for (g),(h): best per layer, or one per pair with the highest rho")
     ap.add_argument("--families", default="Qwen3,Gemma-2,Gemma-3", help="comma list")
     args = ap.parse_args()
     path = ROOT / "figs" / "tdnv_steering.pdf"
     data = load(Path(args.outputs), args.families.split(","),
                 Path(args.steer_outputs) if args.steer_outputs else None)
-    fig_steer_grid(data, args.concept, args.max_invalid, path)
+    fig_steer_grid(data, args.concept, args.max_invalid, path, args.gh_alpha)
     print("wrote", path)
     # appendix: behavioral concepts first, then Geometry of Truth
     app = sorted((c for c in CONCEPT_LABEL if c != args.concept), key=lambda c: not c.startswith("caa_"))
