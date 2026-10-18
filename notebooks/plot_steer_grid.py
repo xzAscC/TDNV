@@ -1,10 +1,14 @@
 """TDNV and additive steering on a shared relative-depth axis, per model family, plus a summary
 over every (model, concept) pair with steering results.
 
-    uv run python notebooks/plot_steer_grid.py [--concept truth_cities] [--max-invalid 0.1]
+    uv run python notebooks/plot_steer_grid.py [--concept truth_cities] [--alpha pair|layer]
 
-Reads outputs/<model>/<concept>/metrics.json (TDNV) and outputs/<model>/steer_<concept>/metrics.json
-(scripts/run_steering.py). Writes figs/tdnv_steering.pdf.
+Reads outputs/<model>/<concept>/metrics.json (TDNV) and <steer-outputs>/<model>/steer_<concept>/metrics.json
+(scripts/run_steering.py; default outputs/steer_all, the every-layer runs). Writes figs/tdnv_steering.pdf
+and figs/appendix/steer_<concept>.pdf. The defaults reproduce the paper figures.
+Steering success per layer (--alpha): "pair" (default) uses one alpha for all layers of a (model,
+concept) pair, the one whose curve has the highest Spearman rho with -log TDNV (pair_stats_alpha);
+"layer" takes the best valid alpha at each layer (pair_stats).
 (a)-(d) TDNV on --concept, (e)-(h) steering success on --concept, (i) min-TDNV depth vs best-steering
 depth, (j) per-model Spearman correlation between -log TDNV and steering success over steered layers.
 """
@@ -46,14 +50,15 @@ SHORT = {  # concept -> x-tick label in (j), in panel order
 }
 
 
-def load(outputs: Path, families: list[str]) -> dict:
+def load(outputs: Path, families: list[str], steer_outputs: Path | None = None) -> dict:
     """(model, concept) -> (TDNV metrics, steering metrics) for every pair that has both,
-    models of `families` only."""
+    models of `families` only. Steering runs are read from `steer_outputs` (default `outputs`)."""
     data = {}
     for m in [m for m in MODELS if MODELS[m][0] in families]:
         d = outputs / m.replace("/", "__")
+        ds = (steer_outputs or outputs) / m.replace("/", "__")
         for c in SHORT:
-            t, s = d / c / "metrics.json", d / f"steer_{c}" / "metrics.json"
+            t, s = d / c / "metrics.json", ds / f"steer_{c}" / "metrics.json"
             if t.exists() and s.exists():
                 data[(m, c)] = (json.loads(t.read_text()), json.loads(s.read_text()))
     return data
@@ -66,6 +71,29 @@ def pair_stats(t: dict, s: dict, max_invalid: float) -> dict:
     rho = spearmanr(-np.log(tdnv[layers - 1]), succ) if np.ptp(succ) > 0 else np.nan
     return dict(L=L, tdnv=tdnv, k=int(np.nanargmin(tdnv)), layers=layers, succ=succ,
                 best=int(layers[np.argmax(succ)]), rho=rho)
+
+
+def pair_stats_alpha(t: dict, s: dict) -> dict:
+    """pair_stats with one alpha for every layer: the alpha whose layerwise success curve has the
+    highest Spearman rho with -log TDNV (an upper bound, since alpha is chosen by rho itself).
+    The best steering layer is the peak of that curve."""
+    tdnv = np.array(t["tdnv"][1:], dtype=float)  # layers 1..L
+    out = None
+    for a in sorted({r["alpha"] for r in s["runs"]}):
+        rs = sorted((r for r in s["runs"] if r["alpha"] == a), key=lambda r: r["layer"])
+        layers = np.array([r["layer"] for r in rs])
+        succ = 100 * np.array([r["success_rate"] for r in rs])
+        rho = spearmanr(-np.log(tdnv[layers - 1]), succ) if np.ptp(succ) > 0 else np.nan
+        if out is None or (np.isfinite(rho) and not rho <= out["rho"]):
+            out = dict(L=len(tdnv), tdnv=tdnv, k=int(np.nanargmin(tdnv)), layers=layers, succ=succ,
+                       best=int(layers[np.argmax(succ)]), rho=rho, alpha=a)
+    return out
+
+
+def all_stats(data: dict, max_invalid: float, alpha: str) -> dict:
+    if alpha == "pair":
+        return {key: pair_stats_alpha(*v) for key, v in data.items()}
+    return {key: pair_stats(*v, max_invalid) for key, v in data.items()}
 
 
 def draw_family_rows(top, stats, concept, models, title=None, xlabel=True):
@@ -86,8 +114,9 @@ def draw_family_rows(top, stats, concept, models, title=None, xlabel=True):
                     marker=marker, markevery=[st["k"]], ms=3.6, markeredgecolor="white",
                     markeredgewidth=0.4)
             xs = st["layers"] / st["L"]
-            a1.plot(xs, st["succ"], color=c, lw=0.9, zorder=2, marker=marker, ms=2.4,
-                    markeredgecolor="white", markeredgewidth=0.3)
+            dense = len(xs) > 12  # every-layer runs: a line only, no marker per layer
+            a1.plot(xs, st["succ"], color=c, lw=0.9, zorder=2, marker=None if dense else marker,
+                    ms=2.4, markeredgecolor="white", markeredgewidth=0.3)
             b = int(np.argmax(st["succ"]))
             a1.plot(xs[b], st["succ"][b], marker="*", color=c, ms=6.5, markeredgecolor="white",
                     markeredgewidth=0.4, zorder=4)
@@ -123,8 +152,8 @@ def draw_family_rows(top, stats, concept, models, title=None, xlabel=True):
     return axes
 
 
-def fig_steer_grid(data, concept, max_invalid, path):
-    stats = {key: pair_stats(*v, max_invalid) for key, v in data.items()}
+def fig_steer_grid(data, concept, max_invalid, path, alpha="pair"):
+    stats = all_stats(data, max_invalid, alpha)
     models = [m for m in MODELS if (m, concept) in data]
     fams = [f for f in FAMILY_COLOR if any(MODELS[m][0] == f for m in models)]
 
@@ -181,10 +210,10 @@ def fig_steer_grid(data, concept, max_invalid, path):
     return fig
 
 
-def fig_appendix_rows(data, concepts, max_invalid, outdir):
+def fig_appendix_rows(data, concepts, max_invalid, outdir, alpha="pair"):
     """One TDNV + steering block per concept, stacked in LaTeX into one appendix figure, lettered
     (a), (b), ...; the last block carries the axis label and the marker legend."""
-    stats = {key: pair_stats(*v, max_invalid) for key, v in data.items()}
+    stats = all_stats(data, max_invalid, alpha)
     outdir.mkdir(parents=True, exist_ok=True)
     for i, c in enumerate(concepts):
         last = i == len(concepts) - 1
@@ -198,10 +227,10 @@ def fig_appendix_rows(data, concepts, max_invalid, outdir):
         plt.close(fig)
 
 
-def summary(data, max_invalid):
+def summary(data, max_invalid, alpha="pair"):
     """Per concept: medians over models of the layerwise Spearman rho, the depth gap between the
     min-TDNV and best steering layers, and the peak steering success."""
-    stats = {key: pair_stats(*v, max_invalid) for key, v in data.items()}
+    stats = all_stats(data, max_invalid, alpha)
     print(f"{'concept':32s} {'n':>2s} {'med rho':>7s} {'med |gap|':>9s} {'med peak%':>9s}")
     for c in SHORT:
         sts = [st for (m, cc), st in stats.items() if cc == c]
@@ -218,18 +247,23 @@ def main():
     ap.add_argument("--outputs", default=str(ROOT / "outputs"))
     ap.add_argument("--concept", default="caa_myopic-reward")
     ap.add_argument("--max-invalid", type=float, default=0.1)
+    ap.add_argument("--steer-outputs", default=str(ROOT / "outputs" / "steer_all"),
+                    help="steering runs root (outputs/steer_all = every layer, outputs = 10 layers)")
+    ap.add_argument("--alpha", choices=["pair", "layer"], default="pair",
+                    help="pair: one alpha per (model, concept), highest rho; layer: best per layer")
     ap.add_argument("--families", default="Qwen3,Gemma-2,Gemma-3", help="comma list")
     args = ap.parse_args()
     path = ROOT / "figs" / "tdnv_steering.pdf"
-    data = load(Path(args.outputs), args.families.split(","))
-    fig_steer_grid(data, args.concept, args.max_invalid, path)
+    data = load(Path(args.outputs), args.families.split(","),
+                Path(args.steer_outputs))
+    fig_steer_grid(data, args.concept, args.max_invalid, path, args.alpha)
     print("wrote", path)
     # appendix: behavioral concepts first, then Geometry of Truth
     app = sorted((c for c in CONCEPT_LABEL if c != args.concept), key=lambda c: not c.startswith("caa_"))
     for group in (app[:3], app[3:]):  # two appendix figures of three concepts, one page each
-        fig_appendix_rows(data, group, args.max_invalid, ROOT / "figs" / "appendix")
+        fig_appendix_rows(data, group, args.max_invalid, ROOT / "figs" / "appendix", args.alpha)
     print("wrote", ", ".join(f"figs/appendix/steer_{c}.pdf" for c in app))
-    summary(data, args.max_invalid)
+    summary(data, args.max_invalid, args.alpha)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""Additive difference-of-means steering at 10 layers, one model and one concept per call.
+"""Additive difference-of-means steering at 10 (or all) layers, one model and one concept per call.
 
 The steering vector at layer l is v_l = mu_1 - mu_0 of the same last-token states that TDNV uses
 (see tdnv.concepts), fit on one half of the data. As in standard activation steering (CAA, ITI),
@@ -23,6 +23,11 @@ caa_*: the held-out A/B question is followed by "(" after the generation prompt,
 A run succeeds when the answer equals the target; an output with no parsable answer is invalid.
 
 Layers: 10 indices evenly spaced over 1..L, with the one nearest the TDNV minimum replaced by it.
+--n-layers 0 steers every layer 1..L.
+
+--reuse DIR takes the (layer, alpha) runs already in DIR/<model>/steer_<concept>/metrics.json when
+that run used the same scale, alphas, n, seed and max-test, and only runs the missing ones.
+Finished layers are saved to metrics.partial.json, so a job that hits its time limit resumes.
 
 Example:
     uv run python scripts/run_steering.py --model Qwen/Qwen3-8B --concepts truth_cities,caa_myopic-reward
@@ -73,6 +78,8 @@ def split(examples, seed):
 
 def pick_layers(tdnv: list[float], k: int) -> list[int]:
     L = len(tdnv) - 1
+    if k == 0:
+        return list(range(1, L + 1))
     best = 1 + int(np.nanargmin(tdnv[1:]))
     layers = sorted({int(round(x)) for x in np.linspace(1, L, k)})
     nearest = min(layers, key=lambda l: abs(l - best))
@@ -221,6 +228,25 @@ def run_concept(model, tok, concept: str, args) -> None:
         return dict(success_rate=float(hit.mean()), success_pos=float(hit[pos].mean()),
                     success_neg=float(hit[~pos].mean()), invalid_rate=float(invalid.mean()))
 
+    same = ("scale", "alphas", "n", "seed", "max_test")
+    done = {}  # (layer, alpha) -> run
+    partial = out_path.with_name("metrics.partial.json")
+    sources = [partial]
+    if args.reuse:
+        sources.append(Path(args.reuse) / model_dir.name / f"steer_{concept}" / "metrics.json")
+    for src in sources:
+        if not src.exists():
+            continue
+        old = json.loads(src.read_text())
+        cfg = {k: old["config"].get(k, "raw" if k == "scale" else None) for k in same}
+        if cfg != {k: vars(args)[k] for k in same}:
+            print(f"  not reusing {src}: config {cfg}")
+            continue
+        for r in old["runs"]:
+            if r["layer"] in layers and r["alpha"] in alphas:
+                done.setdefault((r["layer"], r["alpha"]), r)
+        print(f"  reusing {len(done)} runs from {src}")
+
     steerer = Steerer(model)
     steerer.v = torch.zeros(vec.shape[1])
     steerer.attach(layers[0])
@@ -231,9 +257,15 @@ def run_concept(model, tok, concept: str, args) -> None:
 
     runs = []
     for layer in tqdm(layers, desc="layers"):
+        if all((layer, a) in done for a in alphas):
+            runs += [done[(layer, a)] for a in alphas]
+            continue
         steerer.v = vec[layer]
         steerer.attach(layer)
         for a in alphas:
+            if (layer, a) in done:
+                runs.append(done[(layer, a)])
+                continue
             txt = answer(model, tok, prompts, list(a * signs), steerer, args.batch_size,
                          args.max_new_tokens, choices)
             runs.append(dict(
@@ -245,13 +277,15 @@ def run_concept(model, tok, concept: str, args) -> None:
             print(f"  L{layer:3d} a={a:g} TDNV={tdnv[layer]:8.2f} success={r['success_rate']:.3f} "
                   f"(+{r['success_pos']:.2f}/-{r['success_neg']:.2f}) "
                   f"invalid={r['invalid_rate']:.3f} | {txt[0]!r} {txt[-1]!r}")
+        partial.parent.mkdir(parents=True, exist_ok=True)
+        partial.write_text(json.dumps(dict(runs=runs, config=vars(args)), indent=1))
     steerer.detach()
 
-    out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(dict(
         layers=layers, n_layers_total=len(tdnv) - 1, base=base, runs=runs, n_fit=len(fit),
         n_test=len(test), n_eval=len(prompts), config=vars(args), seconds=time.time() - t0,
     ), indent=1))
+    partial.unlink(missing_ok=True)
     print(f"wrote {out_path} | {time.time() - t0:.0f}s")
 
 
@@ -262,7 +296,7 @@ def main() -> None:
     ap.add_argument("--concepts", default="truth_cities", help="comma list")
     ap.add_argument("--n", type=int, default=1000, help="max samples per class")
     ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--n-layers", type=int, default=10)
+    ap.add_argument("--n-layers", type=int, default=10, help="0 = every layer 1..L")
     ap.add_argument("--alphas", default="0.5,1,2,4")
     ap.add_argument("--scale", choices=["raw", "resid"], default="raw",
                     help="raw: alpha * v_l; resid: alpha * r_l * v_l / ||v_l|| (see module doc)")
@@ -271,6 +305,7 @@ def main() -> None:
     ap.add_argument("--batch-size", type=int, default=32)
     ap.add_argument("--out", default="outputs")
     ap.add_argument("--tdnv-dir", default=None, help="where the TDNV metrics are (default: --out)")
+    ap.add_argument("--reuse", default=None, help="reuse matching runs from this outputs dir")
     args = ap.parse_args()
 
     model_dir = Path(args.out) / args.model.replace("/", "__")
